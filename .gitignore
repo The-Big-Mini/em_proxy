@@ -5,3 +5,7 @@ em_proxy.h
 /em_proxy.xcframework.zip
 /include
 *.a
+.DS_Store
+**/.DS_Store
+.last-prebuilt-fetch-em_proxy
+.skip-prebuilt-fetch-em_proxy
