@@ -9,11 +9,13 @@ jobs:
     concurrency:
       group: ${{ github.ref }}
       cancel-in-progress: true
-    runs-on: macos-14
+    runs-on: macos-15
+    permissions:
+      contents: write
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v3
 
     - name: Install rust
       uses: actions-rs/toolchain@v1
@@ -27,13 +29,30 @@ jobs:
     - name: Cache rust
       uses: Swatinem/rust-cache@v2
 
-    - name: Setup Xcode
-      uses: maxim-lobanov/setup-xcode@v1.6.0
-      with:
-        xcode-version: 15.4
+    - name: Build for iOS device (arm64)
+      env:
+        IPHONEOS_DEPLOYMENT_TARGET: "17.1"
+      run: cargo build --target aarch64-apple-ios --release
 
-    - name: Build
-      run: make zip
+    - name: Build for iOS simulator (arm64)
+      env:
+        IPHONEOS_DEPLOYMENT_TARGET: "17.1"
+      run: cargo build --target aarch64-apple-ios-sim --release
+
+    - name: Build for iOS simulator (x86_64)
+      env:
+        IPHONEOS_DEPLOYMENT_TARGET: "17.1"
+      run: cargo build --target x86_64-apple-ios --release
+
+    - name: Lipo simulator libraries
+      run: |
+        lipo -create \
+          target/aarch64-apple-ios-sim/release/libem_proxy.a \
+          target/x86_64-apple-ios/release/libem_proxy.a \
+          -output libem_proxy-sim.a
+
+    - name: Copy device library
+      run: cp target/aarch64-apple-ios/release/libem_proxy.a libem_proxy-ios.a
 
     - name: Upload to release
       uses: IsaacShelton/update-existing-release@v1.3.1
@@ -42,9 +61,10 @@ jobs:
         release: "Build"
         tag: "build"
         files: |
+          libem_proxy-ios.a
+          libem_proxy-sim.a
           em_proxy.h
           em_proxy.swift
-          target/debug/libem_proxy-ios.a
-          target/debug/libem_proxy-sim.a
         body: |
           Commit: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
+
